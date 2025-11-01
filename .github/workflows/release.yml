@@ -1,0 +1,87 @@
+name: Auto Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  auto_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # required to fetch tags
+
+      - name: Read version from VERSION file
+        id: version_file
+        run: |
+          if [ ! -f VERSION ]; then
+            echo "VERSION file missing!"
+            exit 1
+          fi
+
+          VERSION=$(cat VERSION | tr -d ' \n')
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid VERSION format. Use: v<number>.<number>.<number> (e.g. v0.1.0)"
+            exit 1
+          fi
+
+          echo "VERSION file contains: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Get latest tag from repository
+        id: latest_tag
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag found: $LATEST_TAG"
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Compare VERSION and latest tag
+        id: compare
+        run: |
+          NEW_VERSION="${{ steps.version_file.outputs.version }}"
+          LATEST_TAG="${{ steps.latest_tag.outputs.latest_tag }}"
+
+          # Strip "v"
+          NV=${NEW_VERSION#v}
+          LV=${LATEST_TAG#v}
+
+          parse_semver() {
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$1"
+            echo "$((MAJOR * 10000 + MINOR * 100 + PATCH))"
+          }
+
+          NUM_NEW=$(parse_semver "$NV")
+          NUM_OLD=$(parse_semver "$LV")
+
+          echo "Comparing versions: $LV -> $NV"
+
+          if [ "$NUM_NEW" -le "$NUM_OLD" ]; then
+            echo "VERSION ($NEW_VERSION) is not greater than latest tag ($LATEST_TAG)."
+            echo "Please bump VERSION file before merging to main."
+            exit 1
+          fi
+
+          echo "VERSION is newer. Proceeding with release."
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Tag and Push New Version
+        run: |
+          VERSION="${{ steps.compare.outputs.version }}"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+          echo "Tagged and pushed $VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "${{ steps.compare.outputs.version }}"
+          name: "Release ${{
+            steps.compare.outputs.version
+          }}"
+          generate_release_notes: true
