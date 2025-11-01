@@ -9,38 +9,38 @@ import (
 )
 
 /*
-🌊 FlowHTTP Full Example
+FlowHTTP Full Example
 ------------------------
 
 Demonstrates almost everything FlowHTTP can do:
 
-✅ Middleware chaining (pre + post)
-✅ Branch-level routing with inheritance and ClearSteps()
-✅ Short-circuit middleware (auth check)
-✅ Context storage (ctx.Set / ctx.Get)
-✅ Dynamic path params and wildcards
-✅ JSON response (ctx.JSON)
-✅ JSON parsing from request body (ctx.BindJSON)
-✅ Header manipulation middleware
-✅ Nested forks and isolated branches
-✅ Graceful shutdown support
+- Middleware chaining (pre + post)
+- Branch-level routing with inheritance and ClearSteps()
+- Short-circuit middleware (auth check)
+- Context storage (ctx.Set / ctx.Get)
+- Dynamic path params and wildcards
+- JSON response (ctx.JSON)
+- JSON parsing from request body (ctx.BindJSON)
+- Header manipulation middleware
+- Nested forks and isolated branches
+- Graceful shutdown support
 
 --------------------------------------
-🚀 Run the demo:
-    go run example/main.go
+Run the demo:
+  go run example/main.go
 
 --------------------------------------
-🌍 Routes Overview:
+Routes Overview:
 --------------------------------------
-1️⃣ GET  /                 → Welcome message with context value
-2️⃣ GET  /api/user/:id     → Dynamic route param
-3️⃣ GET  /api/users        → JSON array response
-4️⃣ POST /api/auth/login   → Short-circuit auth + JSON binding
-5️⃣ GET  /files/*          → Wildcard route demo
-6️⃣ GET  /admin/plain/ping → ClearSteps() example (no globals)
+1. GET  /                 → Welcome message with context value
+2. GET  /api/user/:id     → Dynamic route param
+3. GET  /api/users        → JSON array response
+4. POST /api/auth/login   → Short-circuit auth + JSON binding
+5. GET  /files/*          → Wildcard route demo
+6. GET  /admin/plain/ping → ClearSteps() example (no globals)
 
 --------------------------------------
-🧪 CURL Examples:
+CURL Examples:
 --------------------------------------
 # 1. Root route (basic JSON)
 curl -v http://localhost:8080/
@@ -72,7 +72,7 @@ curl -v http://localhost:8080/admin/plain/ping
 func main() {
 	f := flowhttp.NewFlow()
 
-	// 🌐 Global middleware: logger
+	// Global middleware: logger
 	logger := flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
 		start := time.Now()
 		fmt.Printf("[REQ] %s %s\n", ctx.Request.Method, ctx.Request.URL.Path)
@@ -80,29 +80,29 @@ func main() {
 		fmt.Printf("[END] %s took %v\n", ctx.Request.URL.Path, time.Since(start))
 	})
 
-	// 🌐 Adds common header
+	// Adds common header
 	addHeader := flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
 		ctx.Response.Header().Set("X-App", "FlowHTTP")
 		next(ctx)
 	})
 
-	// 🌐 Sets app name in context
+	// Sets app name in context
 	setApp := flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
 		ctx.Set("appName", "FlowHTTP Full Demo")
 		next(ctx)
 	})
 
-	// 🌐 Post-processing middleware
+	// Post-processing middleware
 	after := flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
 		next(ctx)
 		ctx.Response.Header().Set("X-Processed-At", time.Now().Format(time.RFC3339))
 	})
 
-	// 🌍 Root branch with global middleware
+	// Root branch with global middleware
 	root := f.Fork("/", []flowhttp.Step{logger, addHeader, setApp, after})
 
 	// -------------------------------
-	// 1️⃣ Route: GET /
+	// 1. Route: GET /
 	// -------------------------------
 	root.Stream("GET", "/", nil, func(ctx *flowhttp.FlowContext) {
 		ctx.JSON(http.StatusOK, map[string]any{
@@ -112,7 +112,7 @@ func main() {
 	})
 
 	// -------------------------------
-	// 2️⃣ /api branch with version middleware
+	// 2. /api branch with version middleware
 	// -------------------------------
 	api := root.Fork("/api", []flowhttp.Step{
 		flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
@@ -141,7 +141,7 @@ func main() {
 	})
 
 	// -------------------------------
-	// 3️⃣ Auth branch with short-circuit middleware
+	// 3. Auth branch with short-circuit middleware
 	// -------------------------------
 	authCheck := flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
 		if ctx.Request.Header.Get("X-Auth") != "secret" {
@@ -167,14 +167,14 @@ func main() {
 	})
 
 	// -------------------------------
-	// 4️⃣ Wildcard route
+	// 4. Wildcard route
 	// -------------------------------
 	root.Stream("GET", "/files/*", nil, func(ctx *flowhttp.FlowContext) {
 		ctx.JSON(http.StatusOK, map[string]string{"path": ctx.Request.URL.Path})
 	})
 
 	// -------------------------------
-	// 5️⃣ Nested branch with ClearSteps()
+	// 5. Nested branch with ClearSteps()
 	// -------------------------------
 	admin := root.Fork("/admin", []flowhttp.Step{
 		flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
@@ -191,8 +191,8 @@ func main() {
 		})
 	})
 
-	fmt.Println("🚀 FlowHTTP server running at http://localhost:8080")
+	fmt.Println("FlowHTTP server running at http://localhost:8080")
 	if err := f.Run(8080); err != nil {
-		fmt.Println("❌ Server error:", err)
+		fmt.Println("Server error:", err)
 	}
 }
