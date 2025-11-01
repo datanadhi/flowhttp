@@ -1,0 +1,44 @@
+name: Manual Release Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Custom version tag (e.g., 0.2.3-dummy, it cannot be v0.1.0 or something similar to semantic versioning)"
+        required: true
+        type: string
+
+jobs:
+  manual_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate version input
+        id: validate
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Reject empty
+          if [ -z "$VERSION" ]; then
+            echo "Version cannot be empty"
+            exit 1
+          fi
+
+          # Reject pure semver (like 1.2.3)
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Plain semantic versions (like 1.2.3) are not allowed for manual releases."
+            echo "Please use a suffix, e.g. 1.2.3-nichu"
+            exit 1
+          fi
+
+          # Validate custom version pattern
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[a-zA-Z0-9._-]+$ ]]; then
+            echo "Invalid version format."
+            echo "Use pattern: <number>.<number>.<number>-<custom> (e.g. 0.3.1-nichu)"
+            exit 1
+          fi
+
+          echo "Version validated: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Checkout repos
