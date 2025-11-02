@@ -75,17 +75,41 @@ func main() {
 ## Concepts
 
 ### Flow
-`Flow` represents a branch of routes.
-Each branch can inherit its parent’s middleware (Steps) or define its own.
+A **Flow** is the root router of the application.
+It defines routes and acts as the entry point for all branches.
+Use `NewFlow()` to create one, then fork it to build subroutes.
 
 ```go
-api := root.Fork("/api", nil) // inherits global steps
-auth := api.Fork("/auth", nil).ClearSteps() // no global steps
+f := flowhttp.NewFlow()
+root := f.Fork("/", nil)
 ```
+
+A Flow can be started with:
+```go
+f.Run(8080)
+```
+
+---
+
+### Branch
+
+A **Branch** is a segment of a flow, typically representing a grouped set of routes.
+Each branch can:
+- Inherit its parent’s middleware (Steps)
+- Define its own routes and sub-branches
+- Optionally clear inherited Steps with .ClearSteps()
+
+```go
+api := root.Fork("/api", nil)          // inherits middleware
+auth := api.Fork("/auth", nil).ClearSteps() // isolated branch
+```
+
+---
 
 ### Step
 
-A `Step` is a middleware-like unit that receives the request context and decides how to continue the chain.
+A **Step** is a middleware-like unit.
+It runs before and/or after the main handler and can modify the request or short-circuit execution.
 
 ```go
 authCheck := flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
@@ -96,12 +120,38 @@ authCheck := flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowCont
 	next(ctx)
 })
 ```
+You can attach Steps to a branch or individual route.
 
-**Steps can:**
-- Modify headers
-- Inject values into ctx
-- Short-circuit the request (e.g., for authentication)
-- Run logic before or after next(ctx)
+---
+
+### Sink
+
+A **Sink** represents the next function in the chain — similar to a handler in other frameworks.
+It’s automatically managed by FlowHTTP and passed into each Step.
+When you call `next(ctx)`, control moves forward to the next Step or final route handler.
+
+---
+
+### FlowContext
+
+`FlowContext` carries everything about a request — similar to Go’s `http.Request` but with added helpers.
+
+It includes:
+- `Request` — the raw `*http.Request`
+- `Response` — the `http.ResponseWriter`
+- `Set(key, value)` / `Get(key)` — store and retrieve data within a request’s lifetime
+- `Param(name)` — extract path parameters
+- `JSON(status, value)` — send JSON responses
+- `BindJSON(target)` — decode JSON request bodies
+
+Example:
+```go
+ctx.Set("user", "Alice")
+fmt.Println(ctx.Get("user")) // "Alice"
+
+id := ctx.Param("id")
+ctx.JSON(http.StatusOK, map[string]string{"id": id})
+```
 
 ---
 

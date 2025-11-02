@@ -30,6 +30,14 @@ func (f *FlowContext) Param(name string) string { return f.Params[name] }
 // Sink is the user handler type. ServeHTTP builds FlowContext from *http.Request.
 type Sink func(*FlowContext)
 
+// ServeHTTP makes Flow compatible with Go’s http package.
+//
+// Go’s http server (http.ListenAndServe) expects any router or handler
+// to implement the http.Handler interface, which requires a ServeHTTP
+// method. This method is called automatically for each incoming request.
+//
+// You don’t need to call ServeHTTP directly — it’s used internally
+// so Flow can act as a standard HTTP handler.
 func (h Sink) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var params map[string]string
 	if val := r.Context().Value(paramsKey); val != nil {

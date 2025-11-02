@@ -9,7 +9,14 @@ import (
 	"time"
 )
 
-// ServeHTTP implements http.Handler and dispatches requests through Steps -> Sink.
+// ServeHTTP makes Flow compatible with Go’s http package.
+//
+// Go’s http server (http.ListenAndServe) expects any router or handler
+// to implement the http.Handler interface, which requires a ServeHTTP
+// method. This method is called automatically for each incoming request.
+//
+// You don’t need to call ServeHTTP directly — it’s used internally
+// so Flow can act as a standard HTTP handler.
 func (f *Flow) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	path := req.URL.Path
 	method := req.Method
