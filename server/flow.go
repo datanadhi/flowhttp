@@ -1,4 +1,4 @@
-package flowhttp
+package server
 
 import (
 	"fmt"

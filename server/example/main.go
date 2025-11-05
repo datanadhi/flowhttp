@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/datanadhi/flowhttp"
+	flowhttp "github.com/datanadhi/flowhttp/server"
 )
 
 /*

@@ -1,4 +1,4 @@
-package flowhttp
+package server
 
 // Step is a middleware: it receives next Sink and returns a Sink.
 type Step func(Sink) Sink

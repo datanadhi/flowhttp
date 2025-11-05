@@ -1,42 +1,86 @@
 # FlowHTTP
 
-FlowHTTP is a lightweight, flow-based HTTP framework for Go that lets you structure web servers as composable flows.  
-It focuses on clarity, middleware chaining, and flexible route grouping — without adding heavy abstractions.
+FlowHTTP is a lightweight and composable HTTP framework written in Go.
+It now provides both server-side flow handling and client-side HTTP utilities, allowing you to build and consume APIs using a consistent and minimal interface.
 
 ---
 
 ## Overview
 
-FlowHTTP introduces two simple but powerful ideas:
+FlowHTTP helps you handle HTTP in Go with two complementary modules:
+| Module   | Description |
+|-----------|-------------|
+| `server/` | A composable HTTP flow framework built around middleware chains, contextual storage, and expressive routing. |
+| `client/` | A minimal, reliable HTTP client wrapper for making requests, parsing JSON, and handling responses easily. |
 
-- **Flow** — The core router. It holds route definitions and can be forked to create nested groups.
-- **Step** — A middleware unit. Steps can be chained, cleared, or overridden per branch to control request flow.
-
-Together, these allow you to build readable, modular HTTP servers.
+Each module is independent and can be used standalone or together in the same project.
 
 ---
 
-## Key Features
+## Features
 
-- Middleware chaining (pre- and post-handlers)
-- Branch-level routing with inheritance
-- Short-circuiting steps for validations and auth
-- Dynamic path parameters (`ctx.Param`)
-- Context storage (`ctx.Set` / `ctx.Get`)
-- Built-in JSON helpers (`ctx.JSON`, `ctx.BindJSON`)
-- Route groups and wildcard paths
+### Server
+- Middleware chaining and flow-based routing
+- Context-aware request handling (`ctx.Set`, `ctx.Get`)
+- Built-in JSON binding and response helpers
+- Dynamic routing with parameters and wildcards
+- Route grouping with `Fork()` and `ClearSteps()`
 - Graceful shutdown support
+- Minimal dependencies and clean structure
+
+### Client
+- Simple GET and POST helpers
+- Built-in JSON, string, and byte parsing from responses
+- Configurable timeout support
+- Header and query parameter helpers
+- Status helpers (`IsSuccess`, `StatusText`)
+- Automatic body caching for multiple reads
 
 ---
 
-## Installation
+## Repository Structure
+
+```
+flowhttp/
+├── client/
+│   ├── client.go
+│   ├── response.go
+│   ├── utils.go
+│   └── example/
+│       └── main.go
+│
+├── server/
+│   ├── flow.go
+│   ├── context.go
+│   ├── middleware.go
+│   ├── routing.go
+│   ├── server.go
+│   └── example/
+│       └── main.go
+│
+└── README.md
+```
+
+---
+
+## Getting Started
+
+### Installation
 
 ```bash
 go get github.com/datanadhi/flowhttp
 ```
+Import the package you need:
+```go
+import "github.com/datanadhi/flowhttp/server"
+import "github.com/datanadhi/flowhttp/client"
+```
 
-## Example
+---
 
+## Usage Examples
+
+### 1. Server Example
 ```go
 package main
 
@@ -45,140 +89,87 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/datanadhi/flowhttp"
+	"github.com/datanadhi/flowhttp/server"
 )
 
 func main() {
-	f := flowhttp.NewFlow()
+	f := server.NewFlow()
 
-	// Middleware: request logger
-	logger := flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
+	logger := server.CreateStep(func(next server.Sink, ctx *server.FlowContext) {
 		start := time.Now()
 		fmt.Printf("[REQ] %s %s\n", ctx.Request.Method, ctx.Request.URL.Path)
 		next(ctx)
 		fmt.Printf("[END] %s took %v\n", ctx.Request.URL.Path, time.Since(start))
 	})
 
-	root := f.Fork("/", []flowhttp.Step{logger})
+	root := f.Fork("/", []server.Step{logger})
 
-	root.Stream("GET", "/", nil, func(ctx *flowhttp.FlowContext) {
+	root.Stream("GET", "/", nil, func(ctx *server.FlowContext) {
 		ctx.JSON(http.StatusOK, map[string]string{"message": "Welcome to FlowHTTP"})
 	})
 
-	fmt.Println("Server running on :8080")
+	fmt.Println("Server running at http://localhost:8080")
 	f.Run(8080)
 }
 ```
 
----
+Run it with:
 
-## Concepts
-
-### Flow
-A **Flow** is the root router of the application.
-It defines routes and acts as the entry point for all branches.
-Use `NewFlow()` to create one, then fork it to build subroutes.
-
-```go
-f := flowhttp.NewFlow()
-root := f.Fork("/", nil)
-```
-
-A Flow can be started with:
-```go
-f.Run(8080)
+```bash
+go run <path-to-file>/filename.go
 ```
 
 ---
 
-### Branch
-
-A **Branch** is a segment of a flow, typically representing a grouped set of routes.
-Each branch can:
-- Inherit its parent’s middleware (Steps)
-- Define its own routes and sub-branches
-- Optionally clear inherited Steps with .ClearSteps()
-
+### 2. Client Example
 ```go
-api := root.Fork("/api", nil)          // inherits middleware
-auth := api.Fork("/auth", nil).ClearSteps() // isolated branch
-```
+package main
 
----
+import (
+	"fmt"
+	"strings"
+	"time"
 
-### Step
+	"github.com/datanadhi/flowhttp/client"
+)
 
-A **Step** is a middleware-like unit.
-It runs before and/or after the main handler and can modify the request or short-circuit execution.
+func main() {
+	c := client.NewClient(5 * time.Second)
 
-```go
-authCheck := flowhttp.CreateStep(func(next flowhttp.Sink, ctx *flowhttp.FlowContext) {
-	if ctx.Request.Header.Get("X-Auth") != "secret" {
-		ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-		return
+	// GET
+	resp, err := c.Get("https://httpbin.org/get", map[string]string{"q": "flowhttp"}, nil)
+	if err != nil {
+		panic(err)
 	}
-	next(ctx)
-})
-```
-You can attach Steps to a branch or individual route.
+	data, _ := resp.Json()
+	fmt.Println("GET:", data["url"])
 
----
-
-### Sink
-
-A **Sink** represents the next function in the chain — similar to a handler in other frameworks.
-It’s automatically managed by FlowHTTP and passed into each Step.
-When you call `next(ctx)`, control moves forward to the next Step or final route handler.
-
----
-
-### FlowContext
-
-`FlowContext` carries everything about a request — similar to Go’s `http.Request` but with added helpers.
-
-It includes:
-- `Request` — the raw `*http.Request`
-- `Response` — the `http.ResponseWriter`
-- `Set(key, value)` / `Get(key)` — store and retrieve data within a request’s lifetime
-- `Param(name)` — extract path parameters
-- `JSON(status, value)` — send JSON responses
-- `BindJSON(target)` — decode JSON request bodies
-
-Example:
-```go
-ctx.Set("user", "Alice")
-fmt.Println(ctx.Get("user")) // "Alice"
-
-id := ctx.Param("id")
-ctx.JSON(http.StatusOK, map[string]string{"id": id})
-```
-
----
-
-## JSON Utilities
-
-```go
-// Send JSON
-ctx.JSON(http.StatusOK, map[string]string{"message": "OK"})
-
-// Parse request JSON
-var payload struct {
-    Name string `json:"name"`
+	// POST
+	payload := strings.NewReader(`{"hello": "world"}`)
+	resp2, err := c.Post("https://httpbin.org/post", nil, nil, payload, "application/json")
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("POST success:", resp2.IsSuccess())
 }
-ctx.BindJSON(&payload)
+```
+
+Run it with:
+
+```bash
+go run <path-to-file>/filename.go
 ```
 
 ---
 
-## Full Example
+## Philosophy
+FlowHTTP is designed to simplify how developers handle HTTP in Go without adding heavy abstractions.
+Both `server` and `client` follow Go’s standard library design, keeping everything explicit, composable, and minimal.
 
-A complete demonstration is available in [example/main.go](/example/main.go)
-It includes middleware chaining, branch-level routing, JSON parsing, short-circuiting, and wildcard routes.
-
-Run it:
-```go
-go run example/main.go
-```
+You can choose to:
+- Use only the `server` package for routing and flow-based APIs.
+- Use only the `client` package for outgoing requests.
+- Or combine both for full API integration testing and communication.
 
 ---
 

@@ -35,11 +35,15 @@ The repository includes a full **Dev Container** setup for VS Code.
    - Install Go and tools (`gopls`, `golangci-lint`, etc.)
    - Set up linting and formatting (`goimports`, `auto-fix` on save)
    - Forward port `8080`
-3. Run the example:
+3. Run the example you want:
    ```bash
-   go run example/main.go
+   go run server/example/main.go
    ```
-4. Access the app at:
+   or
+   ```bash
+   go run client/example/main.go
+   ```
+4. If you are trying to run server you call access the app at:
    ```bash
    http://localhost:8080
    ```
@@ -60,21 +64,37 @@ The repository includes a full **Dev Container** setup for VS Code.
    ```
 3. Run the example:
    ```bash
-   go run example/main.go
+   go run server/example/main.go
+   ```
+   or
+   ```bash
+   go run client/example/main.go
    ```
 
 ---
 
 ## 3. Project Structure
 ```
+```
 flowhttp/
+├── client/
+│   ├── client.go
+│   ├── response.go
+│   ├── utils.go
+│   └── example/
+│       └── main.go
 │
-├── example/           → Full working demo (run with `go run example/main.go`)
-├── internal/           → Internal packages (if any)
-├── flow.go, context.go → Core framework logic
-├── .devcontainer/      → VS Code container configuration
-├── go.mod              → Go module definition
-└── README.md, LICENSE  → Documentation and license info
+├── server/
+│   ├── flow.go
+│   ├── context.go
+│   ├── middleware.go
+│   ├── routing.go
+│   ├── server.go
+│   └── example/
+│       └── main.go
+│
+└── README.md
+```
 ```
 
 ---
@@ -96,7 +116,7 @@ You can write and run tests directly inside the container:
 ```bash
 go test ./... -v
 ```
-If your change affects example behavior, ensure `example/main.go` runs correctly and routes respond as expected.
+If your change affects example behavior, ensure the examples run correctly and routes respond as expected.
 
 ---
 
@@ -141,7 +161,8 @@ By contributing, you agree that your contributions will be licensed under the sa
 
 | Task | Command |
 |------|----------|
-| Run example | `go run example/main.go` |
+| Run server example | `go run server/example/main.go` |
+| Run client example | `go run client/example/main.go` |
 | Run tests | `go test ./... -v` |
 | Format code | `go fmt ./...` |
 | Lint code | `golangci-lint run` |
